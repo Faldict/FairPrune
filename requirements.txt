@@ -1,0 +1,8 @@
+numpy==1.19.0
+pandas==1.0.5
+scikit-learn==0.23.1
+responsibly==0.1.1
+seaborn==0.10.1
+matplotlib==2.2.5
+smart-open==1.7.1
+gensim==3.7.3
