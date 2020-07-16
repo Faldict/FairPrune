@@ -15,7 +15,7 @@ parser.add_argument('--repeats', type=int, default=5)
 parser.add_argument('--dataset', choices=['adult', 'compas'], default='adult')
 parser.add_argument('--model', choices=['LR', 'SVM', 'MLP'], default='LR')
 parser.add_argument('--constraint', choices=['DP', 'EO'], default='DP')
-parser.add_argument('--lambda', type=float, default=0.0)
+parser.add_argument('--lambda_value', type=float, default=0.0)
 args = parser.parse_args()
 
 # import dataset
@@ -86,7 +86,7 @@ for col in X.columns:
     if args.constraint == 'EO':
         mi = mutual_information_2d(X[col].values[Y==0], A[Y==0]) + mutual_information_2d(X[col].values[Y==1], A[Y==1])
     else:
-        mi = mutual_information_2d(X[col].values, A) - args.lambda * mutual_information_2d(X[col].values, Y)
+        mi = mutual_information_2d(X[col].values, A) - args.lambda_value * mutual_information_2d(X[col].values, Y)
     mis.append((mi, col))
 mis = sorted(mis, reverse=False)
 mis1 = [l[1] for l in mis]
@@ -151,4 +151,4 @@ ax.tick_params(axis='y', labelcolor=palette[1])
 lines = [p1, p2, p3, p4]
 ax.legend(lines, [l.get_label() for l in lines])
 ax.set_title(f'{args.dataset} {args.model}', fontsize=24)
-plt.savefig(f'Figures/{args.dataset}_{args.model}_{args.constraint}_Drop{args.n}_{args.lambda}.pdf')
+plt.savefig(f'Figures/{args.dataset}_{args.model}_{args.constraint}_Drop{args.n}_{args.lambda_value}.pdf')
