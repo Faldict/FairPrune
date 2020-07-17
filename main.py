@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import json
 import responsibly
 from sklearn.model_selection import train_test_split
 
@@ -101,6 +102,9 @@ for i in range(args.n):
         print(f'[INFO] Block {i} features.')
 for k in reports.keys():
     reports[k] = np.array(reports[k])
+
+with open('results/CelebA_Sex.json', 'w') as fp:
+    json.dump(reports, fp)
 
 # plot
 def make_patch_spines_invisible(ax):
