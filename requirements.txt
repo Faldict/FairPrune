@@ -6,3 +6,4 @@ seaborn==0.10.1
 matplotlib==2.2.5
 smart-open==1.7.1
 gensim==3.7.3
+fairlearn==0.4.6
