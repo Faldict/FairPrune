@@ -30,6 +30,7 @@ def import_dataset(dataset_name):
         X, Y, A = compas()
     else:
         X, Y, A = adult()
+    print(A)
     return X, Y, A
     # return X[:100] + Y[:100] + A[:100]
 
@@ -83,7 +84,7 @@ def run_pipeline(args):
             "dp": {},
             "eo": {}
         },
-        "directly": {
+        "unconstrained": {
             "accuracy": {},
             "dp": {},
             "eo": {}
@@ -98,6 +99,7 @@ def run_pipeline(args):
             test_size=0.2,
             random_state=131 + i,
             stratify=np.stack((Y, A), axis=1))
+        print(A_train)
         X_train = X_train.reset_index(drop=True)
         X_test = X_test.reset_index(drop=True)
         A_train = add_noise(args.noise_rate, A_train)
@@ -111,7 +113,7 @@ def run_pipeline(args):
 
 
         print('Running without preprocessing experiment ... ')
-        run_directly(args, reports, X_train, X_test, Y_train, Y_test,
+        run_unconstrained(args, reports, X_train, X_test, Y_train, Y_test,
                         A_train, A_test)
 
     print('post processing ... ')
@@ -162,6 +164,7 @@ def combine_X_A_as_dataframe(X_train, A_train):
     # print(type(X_train), type(A_train))
     # X_train_df = pd.DataFrame(X_train, columns =['a' + str(i) for i in range(len(X_train[0]))]) 
     A_train_df = pd.DataFrame(A_train, columns = ['sex'])
+    print(A_train_df)
     result = pd.concat([X_train, A_train_df], axis=1, join='inner')
     result.index.names = ['sex']
     print(result.head)
@@ -169,22 +172,22 @@ def combine_X_A_as_dataframe(X_train, A_train):
     return result
 
 
-def run_directly(args, reports, X_train, X_test, Y_train, Y_test,
+def run_unconstrained(args, reports, X_train, X_test, Y_train, Y_test,
                         A_train, A_test):
     for i in range(1):
         clf = models[args.model]
         clf.fit(np.array(combine_X_A_as_dataframe(X_train, A_train)), Y_train, sample_weight=None)
         Y_pred = clf.predict(np.array(combine_X_A_as_dataframe(X_test, A_test)))
 
-        if i not in reports["directly"]["accuracy"]:
-            reports["directly"]["accuracy"][i] = []
-            reports["directly"]["dp"][i] = []
-            reports["directly"]["eo"][i] = []
-        reports["directly"]["accuracy"][i].append((Y_pred == Y_test).mean())
-        reports["directly"]["dp"][i].append(
+        if i not in reports["unconstrained"]["accuracy"]:
+            reports["unconstrained"]["accuracy"][i] = []
+            reports["unconstrained"]["dp"][i] = []
+            reports["unconstrained"]["eo"][i] = []
+        reports["unconstrained"]["accuracy"][i].append((Y_pred == Y_test).mean())
+        reports["unconstrained"]["dp"][i].append(
             demographic_parity_difference(
                 y_true=Y_test, y_pred=Y_pred, sensitive_features=A_test))
-        reports["directly"]["eo"][i].append(
+        reports["unconstrained"]["eo"][i].append(
             equal_opportunity_difference(
                 Y_true=Y_test, Y_pred=Y_pred, sensitive_features=A_test))
 
@@ -227,7 +230,6 @@ def clean_graph(disparity, accuracy):
             x.append(pareto[i][0])
             y.append(pareto[i][1])
     return y, x
-    # return disparity, accuracy
 
 
 def plot_result(args):
@@ -238,21 +240,22 @@ def plot_result(args):
             'r') as fp:
         reports = json.load(fp)
 
-    colors = ['red', 'blue', 'green', 'orange', 'pink', 'black', 'yellow', 'peru', 'maroon']
+    colors = ['red', 'blue', 'green',  'black', 'yellow', 'peru', 'maroon']
+    markers = ['^', 'o', 's']
     count = 0
-    for experiment in reports:
-        for attribute in ['eo', 'dp']:
+    for attribute in ['eo', 'dp']:
+        for experiment in reports:
             x, y = clean_graph(reports[experiment][attribute], reports[experiment]['accuracy'])
-            plt.plot(x, 1. - np.array(y), '^-', color=colors[count], label=experiment + ', '+ attribute)
+            plt.plot(x, 1. - np.array(y), markers[count%len(reports)], color=colors[count%len(reports)], label=experiment + ', '+ attribute)
             count += 1
 
-    # Adjust setting
-    plt.xlabel('Disparity')
-    plt.ylabel('Error')
-    plt.legend()
-    plt.title('Reweigh vs. Ours vs. No-preprocessing')
-    plt.savefig('Figures/preprocessing_compare_result'+str(args)+'.pdf')
-    plt.clf()
+        # Adjust setting
+        plt.xlabel('Disparity')
+        plt.ylabel('Error')
+        plt.legend()
+        plt.title('Reweigh vs. Ours vs. Unconstrained')
+        plt.savefig('Figures/preprocessing_compare_result_'+attribute+str(args)+'.pdf')
+        plt.clf()
 
 
 if __name__ == '__main__':
@@ -260,9 +263,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Configurations')
     parser.add_argument('--noise_rate', type=float, default=0.0)
     parser.add_argument('--repeats', type=int, default=5)
-    parser.add_argument('--lambda_value', type=float, default=0.0)
     parser.add_argument('--model', choices=['LR', 'SVM', 'MLP'], default='LR')
-    parser.add_argument('--grid_size', type=int, default=20)
     parser.add_argument('--constraint', choices=['DP', 'EO'], default='DP')
     parser.add_argument('--use_all_XYA', type=bool, default=True)
     parser.add_argument('-n', type=int, default=20)
