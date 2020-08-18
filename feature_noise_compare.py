@@ -57,6 +57,9 @@ def add_noise(noise_rate, sensitive_features):
 
 def compute_mutual_information_between_X_and_A(X, Y, A, args):
     mis = []
+    # TODO(yzhu): delete it
+    if args.use_all_XYA:
+        X, Y, A = import_dataset(args.dataset)
     for col in X.columns:
         if args.constraint == 'EO':
             mi = mutual_information_2d(X[col].values[Y == 0],
@@ -107,7 +110,7 @@ def run_pipeline(args):
 
     print('post processing ... ')
     print(reports)
-    post_processing(reports)
+    post_processing(reports, args)
 
     print('output results ... ')
     with open('results/feature_noise_compare_' + str(args) + '.json',
@@ -115,13 +118,23 @@ def run_pipeline(args):
         json.dump(reports, fp)
 
 
-def post_processing(reports):
+def post_processing(reports, args):
+    if args.use_all_XYA:
+        with open(
+                'results/user_all_XYA.json',
+                'r') as fp:
+            to_be_saved = json.load(fp)
+    else:
+        with open(
+                'results/user_train_XYA.json',
+                'r') as fp:
+            to_be_saved = json.load(fp)
+
+    
     for experiment in reports:
         for matrix in reports[experiment]:
             res = []
             for k in reports[experiment][matrix]:
-                if experiment == 'ours' and matrix == 'dp':
-                    print(k, np.array(reports[experiment][matrix][k]).mean())
                 res.append(np.array(reports[experiment][matrix][k]).mean())
             reports[experiment][matrix] = res
 
@@ -203,6 +216,7 @@ def clean_graph(disparity, accuracy):
 
 def plot_result():
     print('printing ' + str(args) + '...')
+    plt.clf()
     with open(
             'results/feature_noise_compare_' + str(args) + '.json',
             'r') as fp:
@@ -251,6 +265,7 @@ if __name__ == '__main__':
     parser.add_argument('--model', choices=['LR', 'SVM', 'MLP'], default='LR')
     parser.add_argument('--grid_size', type=int, default=20)
     parser.add_argument('--constraint', choices=['DP', 'EO'], default='DP')
+    parser.add_argument('--use_all_XYA', type=bool, default=True)
     parser.add_argument('-n', type=int, default=20)
     parser.add_argument(
         '--dataset', choices=['adult', 'compas'], default='adult')
