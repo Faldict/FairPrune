@@ -263,6 +263,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Configurations')
     parser.add_argument('--noise_rate', type=float, default=0.0)
     parser.add_argument('--repeats', type=int, default=5)
+    parser.add_argument('--lambda_value', type=float, default=0.0)
     parser.add_argument('--model', choices=['LR', 'SVM', 'MLP'], default='LR')
     parser.add_argument('--constraint', choices=['DP', 'EO'], default='DP')
     parser.add_argument('--use_all_XYA', type=bool, default=True)
