@@ -104,8 +104,7 @@ def mutual_information_2d(x, y, sigma=1, normalized=False):
     nmi: float
         the computed similariy measure
     """
-    bins = (256, 256)
-
+    bins = (64, 64)
     jh = np.histogram2d(x, y, bins=bins)[0]
 
     # smooth the jh with a gaussian filter of given sigma
@@ -131,3 +130,43 @@ def mutual_information_2d(x, y, sigma=1, normalized=False):
                - np.sum(s2 * np.log(s2)))
 
     return mi
+
+def equal_opportunity_difference(Y_true, Y_pred, sensitive_features):
+    """
+    Compute equal opportunity difference for a binary dataset.
+    The difference is calculated by the abosolute value of 
+    P(y_pred = 1| y_true = 1, sensitive_feature=1) 
+    − P(y_pred = 1 | y_true = 1, sensitive_feature=0′)
+    Parameters
+    ----------
+    y_true: 1D array
+        ground truth labels
+    y_pred : 1D array
+        predicted labels
+    sensitive features: 1D array
+        sensitive features
+    Returns
+    -------
+    equal_opportunity_difference: float
+        the difference of equal opportunity
+    """
+    count1, count2, count3, count4 = 0, 0, 0, 0
+    # Count1: count the case that y_true=1, y_pred=1, A=1
+    # Count2: count the case that y_true=1, A=1
+    # Count3: count the case that y_true=1, y_pred=1, A=0
+    # Count4: count the case that y_true=1, A=0
+    assert len(Y_true) == len(Y_pred) == len(sensitive_features)
+    for i in range(len(Y_true)):
+        if Y_true[i] != 1:
+            continue
+        if sensitive_features[i] == 1:
+            count2 += 1
+        elif sensitive_features[i] == 0:
+            count4 += 1
+        if Y_pred[i] != 1:
+            continue
+        if sensitive_features[i] == 1:
+            count1 += 1
+        elif sensitive_features[i] == 0:
+            count3 += 1
+    return abs(1. * count1 / count2 - 1. * count3 / count4)

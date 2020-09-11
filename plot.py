@@ -3,54 +3,57 @@ import json
 import matplotlib.pyplot as plt
 import seaborn as sns; sns.set()
 
-with open('results/CelebA.json', 'r') as fp:
-    reports = json.load(fp)
+with open('results/CelebA_00.json', 'r') as fp:
+    report1 = json.load(fp)
 
-n = len(reports['accuracy'])
+with open('results/CelebA_01.json', 'r') as fp:
+    report2 = json.load(fp)
+
+with open('results/CelebA_05.json', 'r') as fp:
+    report3 = json.load(fp)
+
+n = np.arange(len(report1['accuracy'])) * 10
 
 palette = sns.color_palette()
-fig, ax1 = plt.subplots()
-fig.subplots_adjust(right=0.75)
-ax2 = ax1.twinx()
-ax2.grid(b=False)
-
-ax1.set_xlabel('# of Blocked Features')
-ax1.set_ylabel('Mutual Information')
-ax1.set_ylabel('Accuracy')
-ax2.set_ylabel('Disparity')
-ax1.set_xlim(0, n)
-ax2.axis('on')
-idx = np.arange(n)
-p1, = ax2.plot(idx, reports['DP'], color=palette[2], label='DP', marker='+')
-# ax2.fill_between(idx, reports['DP']-reports['DP_std'], reports['DP']+reports['DP_std'], color=palette[2], alpha=0.5)
-p2, = ax2.plot(idx, reports['EO'], color=palette[3], label='EO')
-# par2.fill_between(idx, reports['EO']-reports['EO_std'], reports['EO']+reports['EO_std'], color=palette[3], alpha=0.5)
-ax2.tick_params(axis='y', labelcolor=palette[2])
-
-p3, = ax1.plot(idx, reports['accuracy'], color=palette[0], label='Accuracy')
-# par1.fill_between(idx, reports['accuracy']-reports['accuracy_std'], reports['accuracy']+reports['accuracy_std'], color=palette[0], alpha=0.5)
-ax1.tick_params(axis='y', labelcolor=palette[0])
-
-lines = [p1, p2, p3]
-ax1.legend(lines, [l.get_label() for l in lines])
-ax1.set_title(f'CelebA', fontsize=24)
-plt.savefig(f'Figures/CelebA_Age.pdf')
+fig, ax = plt.subplots()
+ax.plot(n, np.array(report1['DP']), color=palette[0], label='random', linewidth=8, linestyle='dashed')
+ax.plot(n, np.array(report2['DP']), color=palette[1], label='ascending', linewidth=8, linestyle='dashed')
+ax.plot(n, np.array(report3['DP']), color=palette[2], label='descending', linewidth=8, linestyle='dashed')
+# ax.legend(loc=3, fontsize=24)
+plt.xticks(fontsize=20)
+plt.yticks(fontsize=20)
+plt.xlabel('# of Dropped Channels', fontsize=24)
+plt.ylabel('Max Violation', fontsize=24)
+plt.savefig('Figures/CelebA_lambda_dp.pdf', bbox_inches='tight')
 
 plt.clf()
+fig, ax = plt.subplots()
+ax.plot(n, np.array(report1['EO']), color=palette[0], label='random', linewidth=8, linestyle='dashed')
+ax.plot(n, np.array(report2['EO']), color=palette[1], label='ascending', linewidth=8, linestyle='dashed')
+ax.plot(n, np.array(report3['EO']), color=palette[2], label='descending', linewidth=8, linestyle='dashed')
+# ax.legend(loc=3, fontsize=24)
+plt.xticks(fontsize=20)
+plt.yticks(fontsize=20)
+plt.xlabel('# of Dropped Channels', fontsize=24)
+plt.ylabel('Max Violation', fontsize=24)
+plt.savefig('Figures/CelebA_lambda_eo.pdf', bbox_inches='tight')
 
-pareto = [(reports['accuracy'][i], reports['DP'][i]) for i in range(argsn)]
-pareto = sorted(pareto)
+plt.clf()
+fig, ax = plt.subplots()
+ax.plot(n, np.array(report1['accuracy']), color=palette[0], label=r'$\lambda = 0.0$', linewidth=8, linestyle='dashed')
+ax.plot(n, np.array(report2['accuracy']), color=palette[1], label=r'$\lambda = 0.1$', linewidth=8, linestyle='dashed')
+ax.plot(n, np.array(report3['accuracy']), color=palette[2], label=r'$\lambda = 0.5$', linewidth=8, linestyle='dashed')
+# ax.legend(loc=3, fontsize=24)
+plt.xticks(fontsize=20)
+plt.yticks(fontsize=20)
+plt.xlabel('# of Dropped Channels', fontsize=24)
+plt.ylabel('Accuracy', fontsize=24)
+plt.savefig('Figures/CelebA_lambda_accuracy.pdf', bbox_inches='tight')
 
-x = [pareto[0][0]]
-y = [pareto[0][1]]
-for i in range(1, argsn):
-    if pareto[i][1] >= y[-1]:
-        x.append(pareto[i][0])
-        y.append(pareto[i][1])
-
-# plt.scatter(reports['accuracy'], reports['DP'])
-plt.plot(1-x, y, 'bo-')
-plt.xlabel('Error')
-plt.ylabel('Fairness')
-plt.title('CelebA Dataset')
-plt.show()
+figsize = (2, 2)
+fig_leg = plt.figure(figsize=figsize)
+ax_leg = fig_leg.add_subplot(111)
+# add the legend from the previous axes
+ax_leg.legend(*ax.get_legend_handles_labels(), loc='center', fontsize=12)
+ax_leg.axis('off')
+fig_leg.savefig('Figures/CelebA_lambda_legend.pdf', bbox_inches='tight')
