@@ -25,7 +25,7 @@ if args.dataset == 'compas':
     X, Y, A = compas()
 elif args.dataset == 'crime':
     X, Y, A = crime()
-    A = np.digitize(A, np.array([0.05, 0.10, 0.3]))
+    # A = np.digitize(A, np.array([0.05, 0.10, 0.3]))
 else:
     X, Y, A = adult()
 
@@ -61,27 +61,27 @@ def run(X, Y, A, repeats=5):
 
         Y_pred = clf.predict(X_test)
 
-        report = responsibly.fairness.metrics.report_binary(Y_test, Y_pred, A_test)
+        # report = responsibly.fairness.metrics.report_binary(Y_test, Y_pred, A_test)
         accuracy.append((Y_pred == Y_test).mean())
         mi.append(mutual_information_2d(Y_pred, A_test))
-        dp.append(abs(report.loc['acceptance_rate'] - report.loc['acceptance_rate'].mean()).max())
-        tpr = abs(report.loc['fnr'] - report.loc['fnr'].mean()).max()
-        fpr = abs(report.loc['fpr'] - report.loc['fpr'].mean()).max()
-        equal_tpr.append(tpr)
-        equal_fpr.append(fpr)
-        eo.append(max(tpr, fpr))
+        # dp.append(abs(report.loc['acceptance_rate'] - report.loc['acceptance_rate'].mean()).max())
+        # tpr = abs(report.loc['fnr'] - report.loc['fnr'].mean()).max()
+        # fpr = abs(report.loc['fpr'] - report.loc['fpr'].mean()).max()
+        # equal_tpr.append(tpr)
+        # equal_fpr.append(fpr)
+        # eo.append(max(tpr, fpr))
 
     reports = {
             'accuracy' : np.array(accuracy).mean(),
             'accuracy_std' : np.array(accuracy).std(),
-            'DP' : np.array(dp).mean(),
-            'DP_std' : np.array(dp).std(),
-            'TPR' : np.array(tpr).mean(),
-            'TPR_std' : np.array(tpr).std(),
-            'FPR' : np.array(fpr).mean(),
-            'FPR_std' : np.array(fpr).std(),
-            'EO' : np.array(eo).mean(),
-            'EO_std' : np.array(eo).std(),
+            # 'DP' : np.array(dp).mean(),
+            # 'DP_std' : np.array(dp).std(),
+            # 'TPR' : np.array(tpr).mean(),
+            # 'TPR_std' : np.array(tpr).std(),
+            # 'FPR' : np.array(fpr).mean(),
+            # 'FPR_std' : np.array(fpr).std(),
+            # 'EO' : np.array(eo).mean(),
+            # 'EO_std' : np.array(eo).std(),
             'MI' : np.array(mi).mean(),
             'MI_std' : np.array(mi).std()
     }
@@ -97,7 +97,7 @@ for col in X.columns:
     mis.append((mi, col))
 mis = sorted(mis, reverse=False)
 mis1 = [l[1] for l in mis]
-reports = {'accuracy':[], 'accuracy_std':[], 'DP':[], 'DP_std':[], 'TPR':[], 'TPR_std':[], 'FPR': [], 'FPR_std':[], 'EO': [], 'EO_std': [], 'MI': [], 'MI_std': []}
+reports = {'accuracy':[], 'accuracy_std':[], 'MI': [], 'MI_std': []}
 for i in range(args.n):
     Xt = X[mis1[:len(X.columns)-i]]
     report = run(Xt, Y, A, repeats=args.repeats)
@@ -112,52 +112,21 @@ for k in reports.keys():
 #     json.dump(reports, fp)
 
 # plot
-def make_patch_spines_invisible(ax):
-    ax.set_frame_on(True)
-    ax.patch.set_visible(False)
-    for sp in ax.spines.values():
-        sp.set_visible(False)
 
-palette = sns.color_palette()
-fig, ax = plt.subplots()
-fig.subplots_adjust(right=0.75)
-par1 = ax.twinx()
-par2 = ax.twinx()
-par1.grid(b=False)
-par2.grid(b=False)
+plt.plot(np.arange(args.n), reports['accuracy'])
+plt.fill_between(np.arange(args.n), reports['accuracy'] - reports['accuracy_std'], reports['accuracy'] + reports['accuracy_std'], alpha=0.3)
+plt.xlabel("# of Dropped Features", fontsize=20)
+plt.ylabel("Accuracy", fontsize=20)
+plt.xticks(fontsize=16)
+plt.yticks(fontsize=16)
+plt.savefig("Figures/crime_accuracy.pdf", bbox_inches='tight')
 
-# Offset the right spine of par2.  The ticks and label have already been
-# placed on the right by twinx above.
-par2.spines["right"].set_position(("axes", 1.2))
-# Having been created by twinx, par2 has its frame off, so the line of its
-# detached spine is invisible.  First, activate the frame but make the patch
-# and spines invisible.
-make_patch_spines_invisible(par2)
-# Second, show the right spine.
-par2.spines["right"].set_visible(True)
+plt.clf()
+plt.plot(np.arange(args.n), reports['MI'])
+plt.fill_between(np.arange(args.n), reports['MI'] - reports['MI_std'], reports['MI'] + reports['MI_std'], alpha=0.3)
+plt.xlabel("# of Dropped Features", fontsize=20)
+plt.ylabel("Mutual Information", fontsize=20)
+plt.xticks(fontsize=16)
+plt.yticks(fontsize=16)
+plt.savefig("Figures/crime_mi.pdf", bbox_inches='tight')
 
-ax.set_xlabel('# of Blocked Features')
-ax.set_ylabel('Mutual Information')
-par1.set_ylabel('Accuracy')
-par2.set_ylabel('Disparity')
-ax.set_xlim(0, args.n)
-par2.axis('on')
-idx = np.arange(args.n)
-p1, = par2.plot(idx, reports['DP'], color=palette[2], label='DP', marker='+')
-par2.fill_between(idx, reports['DP']-reports['DP_std'], reports['DP']+reports['DP_std'], color=palette[2], alpha=0.5)
-p2, = par2.plot(idx, reports['EO'], color=palette[3], label='EO')
-par2.fill_between(idx, reports['EO']-reports['EO_std'], reports['EO']+reports['EO_std'], color=palette[3], alpha=0.5)
-par2.tick_params(axis='y', labelcolor=palette[2])
-
-p3, = par1.plot(idx, reports['accuracy'], color=palette[0], label='Accuracy')
-par1.fill_between(idx, reports['accuracy']-reports['accuracy_std'], reports['accuracy']+reports['accuracy_std'], color=palette[0], alpha=0.5)
-par1.tick_params(axis='y', labelcolor=palette[0])
-
-p4, = ax.plot(idx, reports['MI'], color=palette[1], label='Mutual Information')
-ax.fill_between(idx, reports['MI']-reports['MI_std'], reports['MI']+reports['MI_std'], color=palette[1], alpha=0.5)
-ax.tick_params(axis='y', labelcolor=palette[1])
-
-lines = [p1, p2, p3, p4]
-ax.legend(lines, [l.get_label() for l in lines])
-ax.set_title(f'{args.dataset} {args.model}', fontsize=24)
-plt.savefig(f'Figures/{args.dataset}_{args.model}_{args.constraint}_Drop{args.n}_{args.lbda}.pdf')
