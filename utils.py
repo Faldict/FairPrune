@@ -3,15 +3,68 @@ from scipy.special import gamma, psi
 from scipy import ndimage
 from scipy.linalg import det
 from numpy import pi
+import pandas as pd
+import responsibly
 
 from sklearn.neighbors import NearestNeighbors
 
 __all__ = [
     'entropy', 'mutual_information', 'entropy_gaussian',
-    'mutual_information_2d'
+    'mutual_information_2d', 'non_binary_equal_opportunity_difference',
+    'add_noise', 'add_asymmetric_noise',
+    'compute_mutual_information_between_X_and_A',
+    'combine_X_A_as_dataframe'
 ]
 
 EPS = np.finfo(float).eps
+
+
+def add_noise(noise_rate, sensitive_features):
+    """ Add noise to random binary sensitive attributes. 
+
+    noise_rate: float, the percentage of samples that should be added with noise
+    sensitive_features: array of int(0 or 1), sensitive attributes
+
+    ret: array of int(0 or 1), sensitive attributes with noise
+    """
+    print('adding noise to sensitive features with noise_rate = ' +
+          str(noise_rate))
+    labels = np.unique(sensitive_features)
+    assert len(labels) == 2
+    m = len(sensitive_features)
+    random_number_array = np.random.rand(m)
+    for i in range(m):
+        if noise_rate > random_number_array[i]:
+            if sensitive_features[i] == labels[0]:
+                sensitive_features[i] = labels[1]
+            elif sensitive_features[i] == labels[1]:
+                sensitive_features[i] = labels[0]
+    return sensitive_features
+
+
+def add_asymmetric_noise(noise_rate, sensitive_features):
+    """ Add asymmetric noise to random binary sensitive attributes. 
+
+    noise_rate: float, the percentage of samples that should be added with noise
+                if they are 0
+    sensitive_features: array of int(0 or 1), sensitive attributes
+
+    ret: array of int(0 or 1), sensitive attributes with noise
+    """
+    print('adding asymmetric noise to sensitive features with noise_rate=' + str(noise_rate))
+    labels = np.unique(sensitive_features)
+    assert len(labels) == 2
+    m = len(sensitive_features)
+    random_number_array = np.random.rand(m)
+    for i in range(m):
+        if sensitive_features[i] == 0:
+            continue
+        if noise_rate > random_number_array[i]:
+            if sensitive_features[i] == labels[0]:
+                sensitive_features[i] = labels[1]
+            elif sensitive_features[i] == labels[1]:
+                sensitive_features[i] = labels[0]
+    return sensitive_features
 
 
 def nearest_distances(X, k=1):
@@ -134,6 +187,15 @@ def mutual_information_2d(x, y, sigma=1, normalized=False):
     return mi
 
 
+def non_binary_equal_opportunity_difference(y_true, y_pred, sensitive_features):
+    """ Report equal opportunity difference of non-binary groups
+    """
+    report = responsibly.fairness.metrics.report_binary(y_true, y_pred, sensitive_features)
+    tpr = abs(report.loc['fnr'] - report.loc['fnr'].mean()).max()
+    fpr = abs(report.loc['fpr'] - report.loc['fpr'].mean()).max()
+    return max(tpr, fpr)
+
+
 def equal_opportunity_difference(Y_true, Y_pred, sensitive_features):
     """
     Compute equal opportunity difference for a binary dataset.
@@ -173,3 +235,34 @@ def equal_opportunity_difference(Y_true, Y_pred, sensitive_features):
         elif sensitive_features[i] == 0:
             count3 += 1
     return abs(1. * count1 / count2 - 1. * count3 / count4)
+
+
+def compute_mutual_information_between_X_and_A(X, Y, A, constraint, lambda_value):
+    """ Compute mutual information between X and A
+
+    The formula varies as constraint varies.
+    """
+    mis = []
+    for col in X.columns:
+        if constraint == 'EO':
+            mi = mutual_information_2d(X[col].values[Y == 0],
+                                       A[Y == 0]) + mutual_information_2d(
+                                           X[col].values[Y == 1], A[Y == 1])
+        else:
+            mi = mutual_information_2d(
+                X[col].values, A) - lambda_value * mutual_information_2d(
+                    X[col].values, Y)
+        mis.append((mi, col))
+    mis = sorted(mis, reverse=False)
+    mis1 = [l[1] for l in mis]
+    return mis1
+
+
+def combine_X_A_as_dataframe(X_train, A_train):
+    """ Combine X and A together into a dataframe by matching their index.
+    """
+    A_train_df = pd.DataFrame(A_train, columns = ['sensitive_attribute'])
+    print(A_train_df)
+    result = pd.concat([X_train, A_train_df], axis=1, join='inner')
+    result.index.names = ['sensitive_attribute']
+    return result
